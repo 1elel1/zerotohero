@@ -1,0 +1,32 @@
+22.563168 M parameters
+step 0: train loss 8.9324, val loss 8.9249
+step 250: train loss 4.9905, val loss 5.6051
+step 500: train loss 4.5888, val loss 5.2633
+step 750: train loss 4.3203, val loss 5.0530
+step 1000: train loss 4.1525, val loss 4.9570
+step 1250: train loss 4.0163, val loss 4.8172
+step 1500: train loss 3.8953, val loss 4.7685
+step 1750: train loss 3.8147, val loss 4.7141
+step 2000: train loss 3.7094, val loss 4.6677
+step 2250: train loss 3.6203, val loss 4.6529
+step 2500: train loss 3.5817, val loss 4.6091
+step 2750: train loss 3.5096, val loss 4.6280
+step 3000: train loss 3.4312, val loss 4.5817
+step 3250: train loss 3.3792, val loss 4.6018
+step 3500: train loss 3.3171, val loss 4.5689
+step 3750: train loss 3.2490, val loss 4.5562
+step 4000: train loss 3.1774, val loss 4.5518
+step 4250: train loss 3.1482, val loss 4.5679
+step 4500: train loss 3.0970, val loss 4.5535
+step 4750: train loss 3.0594, val loss 4.5494
+step 5000: train loss 3.0078, val loss 4.5613
+step 5250: train loss 2.9791, val loss 4.5912
+step 5500: train loss 2.9295, val loss 4.5820
+step 5750: train loss 2.8798, val loss 4.5968
+step 5999: train loss 2.8511, val loss 4.6103
+
+你：Traceback (most recent call last):
+  File "C:\Users\24062\Desktop\personal projects\从零写模型\model.py", line 183, in <module>
+    user_input = input("\n你：")
+                 ~~~~~^^^^^^^^^^
+EOFError: EOF when reading a line

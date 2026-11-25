@@ -1,19 +1,22 @@
 #region initialization
+import os
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
 
-eval_iters = 200
-eval_interval = 500
+eval_iters = 50
+eval_interval = 250
 block_size = 100
 n_embd = 384
 n_heads = 6
-batch_size = 4
+batch_size = 64
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
+torch.backends.cuda.matmul.allow_tf32 = True  # 用 TF32 做矩阵乘，RTX 5060 上每步从约 640ms 降到约 380ms
+torch.backends.cudnn.allow_tf32 = True
 dropout = 0.1
 num_layer = 10
 learning_rate = 3e-4
-max_iters = 1
+max_iters = 1  # 重新训练时用的是 6000（见 train_log_v2.txt）；平时聊天保持 1
 
 
 with open('text.txt', 'r', encoding='utf-8') as f:
@@ -65,7 +68,7 @@ class Head(nn.Module):
 
     def forward(self, x):
         B, T, C = x.shape
-        wei = self.q(x) @ self.k(x).transpose(-2,-1) * self.k(x).shape[-1]**0.5
+        wei = self.q(x) @ self.k(x).transpose(-2,-1) * self.k(x).shape[-1]**-0.5  # 除以 sqrt(head_size)
         wei = wei.masked_fill(self.tril[:T, :T] == 0, float('-inf'))
         wei = F.softmax(wei, dim = -1)
         wei = self.dropout(wei)
@@ -112,7 +115,7 @@ class GPT(nn.Module):
     def __init__(self):
         super().__init__()
         self.token_embedding = nn.Embedding(vocab_size, n_embd)
-        self.position_embedding = nn.Embedding(vocab_size, n_embd)
+        self.position_embedding = nn.Embedding(block_size, n_embd)  # 每个位置一个向量
         self.blocks = nn.Sequential(
             *[Block(n_embd, n_heads) for _ in range(num_layer)] 
         )
@@ -120,7 +123,9 @@ class GPT(nn.Module):
         self.lm = nn.Linear(n_embd, vocab_size)
 
     def forward(self, idx, targets=None):
-        x = self.token_embedding(idx) + self.position_embedding(idx)
+        T = idx.shape[1]
+        pos = torch.arange(T, device=idx.device)  # 位置 0..T-1，而不是 token id
+        x = self.token_embedding(idx) + self.position_embedding(pos)
         x = self.ln(self.blocks(x))
         logits = self.lm(x)
 
@@ -140,20 +145,24 @@ class GPT(nn.Module):
         return idx
 
 model = GPT()
-model.load_state_dict(torch.load("model.pth", map_location=device))
+if os.path.exists("model.pth"):  # 没有存档就从头训练
+    model.load_state_dict(torch.load("model.pth", map_location=device))
 m = model.to(device)
 print(sum((p.numel()) for p in m.parameters())/1e6, 'M parameters')
 optimizer = torch.optim.AdamW(model.parameters(), learning_rate)
+best_val = float('inf')
 for iter in range(max_iters):
     if iter % eval_interval == 0 or iter == max_iters-1:
         losses = estimate_loss()
-        print(f"step {iter}: train loss {losses['train_data']:.4f}, val loss {losses['test_data']:.4f}")
+        print(f"step {iter}: train loss {losses['train_data']:.4f}, val loss {losses['test_data']:.4f}", flush=True)
+        if losses['test_data'] < best_val:  # 只保存验证集最好的那次，防止过拟合后把好权重覆盖掉
+            best_val = losses['test_data']
+            torch.save(model.state_dict(), "model.pth")
 
     logits, loss = model(*get_batch("train_data"))
     optimizer.zero_grad(set_to_none=True)
     loss.backward()
     optimizer.step()
-torch.save(model.state_dict(),"model.pth")
 
 # context = torch.zeros((2,3), dtype = torch.long, device=device)
 # while True:
